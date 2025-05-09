@@ -38,6 +38,7 @@ class UserBase(BaseModel):
 
 class UserRegister(UserBase):
     email: EmailStr
+    phone: str
 
 class UserLogin(BaseModel):
     username: str
@@ -45,9 +46,6 @@ class UserLogin(BaseModel):
     passwordLength: int | None = None  # Make it optional since it's not always needed
 
 # Funciones de utilidad
-def hash_username(username: str) -> str:
-    return hashlib.sha256((username + "fixed_salt_for_usernames_123").encode()).hexdigest()
-
 def hash_email(email: str) -> str:
     return hashlib.sha256((email + "fixed_salt_for_emails_456").encode()).hexdigest()
 
@@ -62,9 +60,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         print(f"Password verification error: {str(e)}")
         return False
 
-def verify_username(plain_username: str, hashed_username: str) -> bool:
-    return hash_username(plain_username) == hashed_username
-
 def verify_email(plain_email: str, hashed_email: str) -> bool:
     return hash_email(plain_email) == hashed_email
 
@@ -73,27 +68,34 @@ def validate_password(password: str) -> bool:
         return False
     return True
 
+def hash_phone(phone: str) -> str:
+    """Hash phone number with SHA-256"""
+    return hashlib.sha256((phone + EMAIL_SALT).encode()).hexdigest()
+
 @app.post("/usuarios", status_code=201)
 async def register_user(user: UserRegister):
     print(f"Registration attempt for username: {user.username}")
     
     # Verificar si el usuario ya existe
-    hashed_username = hash_username(user.username)
-    if users_collection.find_one({"username": hashed_username}):
+    if users_collection.find_one({"username": user.username}):
         raise HTTPException(
             status_code=400,
             detail="El nombre de usuario ya está registrado"
         )
 
-    # Hash the password
+    # Hash solo password, email y phone
     hashed_password = hash_password(user.password)
-    print(f"Password hashed successfully for user: {user.username}")
+    hashed_email = hash_email(user.email)
+    hashed_phone = hash_phone(user.phone)
+    
+    print(f"Data hashed successfully for user: {user.username}")
 
     # Crear documento de usuario
     user_doc = {
-        "username": hashed_username,
-        "email": hash_email(user.email),
-        "password": hashed_password,
+        "username": user.username,        # Sin hashear
+        "email": hashed_email,           # Hasheado
+        "password": hashed_password,     # Hasheado
+        "phone": hashed_phone,           # Hasheado
         "created_at": datetime.utcnow()
     }
 
@@ -102,7 +104,9 @@ async def register_user(user: UserRegister):
         print(f"User registered successfully: {user.username}")
         return {
             "username": user.username,
-            "email": user.email
+            "email": user.email,
+            "phone": user.phone,
+            "message": "Usuario registrado exitosamente"
         }
     except Exception as e:
         print(f"Error during user registration: {str(e)}")
@@ -114,12 +118,8 @@ async def login(user: UserLogin):
         print("\n=== Login Request Received ===")
         print(f"Username attempting login: {user.username}")
         
-        # Hash username for lookup
-        hashed_username = hash_username(user.username)
-        print(f"Hashed username for lookup: {hashed_username}")
-        
-        # Find user in database
-        db_user = users_collection.find_one({"username": hashed_username})
+        # Find user in database (ahora sin hashear)
+        db_user = users_collection.find_one({"username": user.username})
         print(f"User found in database: {bool(db_user)}")
         
         if not db_user:
@@ -129,7 +129,6 @@ async def login(user: UserLogin):
             )
         
         # Debug password verification
-        print(f"Stored hashed password: {db_user['password']}")
         print(f"Attempting to verify password: {user.password}")
         is_valid = verify_password(user.password, db_user["password"])
         print(f"Password verification result: {is_valid}")
