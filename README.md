@@ -1,6 +1,6 @@
 # API Project Juegos
 
-Esta API proporciona endpoints para gestionar información relacionada con juegos.
+Esta API desarrollada en Python proporciona endpoints para gestionar información relacionada con juegos.
 
 ## Configuración inicial
 
@@ -10,73 +10,79 @@ git clone <url-del-repositorio>
 cd api-ProjectJuegos
 ```
 
-2. Instalar dependencias:
+2. Crear y activar entorno virtual:
 ```bash
-npm install
+python -m venv venv
+source venv/bin/activate  # En Linux/Mac
+venv\Scripts\activate     # En Windows
 ```
 
-3. Configurar variables de entorno:
+3. Instalar dependencias:
+```bash
+pip install fastapi uvicorn sqlalchemy python-dotenv
+```
+
+4. Configurar variables de entorno:
 - Crear archivo `.env` en la raíz del proyecto
 - Añadir las siguientes variables:
 ```
-PORT=3000
-DB_URL=<tu-url-de-base-de-datos>
+DATABASE_URL=postgresql://user:password@localhost/dbname
 ```
 
 ## Ejecutar la API
 
-### Modo desarrollo:
+Para iniciar el servidor:
 ```bash
-npm run dev
+uvicorn main:app --port 5000
 ```
 
-### Modo producción:
-```bash
-npm start
+## Estructura del Proyecto
+
+### Interfaces (Modelos Pydantic)
+```python
+class GameBase(BaseModel):
+    title: str
+    genre: str
+    year: int
+
+class GameCreate(GameBase):
+    pass
+
+class Game(GameBase):
+    id: int
+    class Config:
+        orm_mode = True
 ```
 
 ## Endpoints disponibles
 
 ### Juegos
 - `GET /api/games` - Obtener todos los juegos
-- `GET /api/games/:id` - Obtener juego por ID
+- `GET /api/games/{game_id}` - Obtener juego por ID
 - `POST /api/games` - Crear nuevo juego
-- `PUT /api/games/:id` - Actualizar juego
-- `DELETE /api/games/:id` - Eliminar juego
+- `PUT /api/games/{game_id}` - Actualizar juego
+- `DELETE /api/games/{game_id}` - Eliminar juego
 
 ## Consumo desde Frontend
 
-### Ejemplo con Fetch:
-```javascript
-// Obtener todos los juegos
-fetch('http://localhost:3000/api/games')
-    .then(response => response.json())
-    .then(data => console.log(data));
+### Ejemplo con Python Requests:
+```python
+import requests
 
-// Crear nuevo juego
-fetch('http://localhost:3000/api/games', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        title: 'Nuevo Juego',
-        genre: 'Acción',
-        year: 2023
-    })
-});
+# Obtener todos los juegos
+response = requests.get('http://localhost:5000/api/games')
+games = response.json()
+
+# Crear nuevo juego
+new_game = {
+    "title": "Nuevo Juego",
+    "genre": "Acción",
+    "year": 2023
+}
+response = requests.post('http://localhost:5000/api/games', json=new_game)
 ```
 
-### Ejemplo con Axios:
-```javascript
-// Obtener todos los juegos
-axios.get('http://localhost:3000/api/games')
-    .then(response => console.log(response.data));
-
-// Crear nuevo juego
-axios.post('http://localhost:3000/api/games', {
-    title: 'Nuevo Juego',
-    genre: 'Acción',
-    year: 2023
-});
-```
+### Documentación API
+La documentación interactiva estará disponible en:
+- Swagger UI: `http://localhost:5000/docs`
+- ReDoc: `http://localhost:5000/redoc`
